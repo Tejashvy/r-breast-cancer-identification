@@ -1,0 +1,467 @@
+---
+title: "IDS 572 Assignment - 2"
+author: "Nipun Ranjan, Amit Patel, Tejashvy Raj Singh"
+date: "2022-09-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Q1 
+Importing libraries
+```{r}
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+```
+Importing datasets
+```{r}
+train_bc_data <- read.csv("01 Case -1 Train data/trainX.csv")
+train_bc_label <- read.csv("01 Case -1 Train data/trainY.csv")
+
+colnames(train_bc_data) <- c("Radius.mean","Texture.mean","Perimeter.mean","Area.mean","Smoothness.mean","Compactness.mean","Concavity.mean","nocp.mean","Symmetry.mean","fd.mean","Radius.sd","Texture.sd","Perimeter.sd","Area.sd","Smoothness.sd","Compactness.sd","Concavity.sd","nocp.sd","Symmetry.sd","fd.sd","Radius.max","Texture.max","Perimeter.max","Area.max","Smoothness.max","Compactness.max","Concavity.max","nocp.max","Symmetry.max","fd.max")
+
+colnames(train_bc_label) <- c("Label")
+
+test_bc_data <- read.csv("02 Case -1 Test data/testX.csv")
+test_bc_label <- read.csv("02 Case -1 Test data/testY.csv")
+
+colnames(test_bc_data) <- c("Radius.mean","Texture.mean","Perimeter.mean","Area.mean","Smoothness.mean","Compactness.mean","Concavity.mean","nocp.mean","Symmetry.mean","fd.mean","Radius.sd","Texture.sd","Perimeter.sd","Area.sd","Smoothness.sd","Compactness.sd","Concavity.sd","nocp.sd","Symmetry.sd","fd.sd","Radius.max","Texture.max","Perimeter.max","Area.max","Smoothness.max","Compactness.max","Concavity.max","nocp.max","Symmetry.max","fd.max")
+
+colnames(test_bc_label) <- c("Label")
+
+train_bc <- cbind(train_bc_data,train_bc_label)
+```
+Data exploration
+```{r}
+train_bc_fivnums <- sapply(train_bc[c("Radius.mean","Texture.mean","Perimeter.mean","Area.mean","Smoothness.mean","Compactness.mean","Concavity.mean","nocp.mean","Symmetry.mean","fd.mean","Radius.sd","Texture.sd","Perimeter.sd","Area.sd","Smoothness.sd","Compactness.sd","Concavity.sd","nocp.sd","Symmetry.sd","fd.sd","Radius.max","Texture.max","Perimeter.max","Area.max","Smoothness.max","Compactness.max","Concavity.max","nocp.max","Symmetry.max","fd.max")],fivenum)%>%
+  view()
+
+Distance_q1_q3 <- train_bc_fivnums[4,]-train_bc_fivnums[2,]
+
+
+train_bc_fivnums <- rbind(train_bc_fivnums,Distance_q1_q3)
+view(train_bc_fivnums)
+
+IQR <- 1.5*train_bc_fivnums[6,]
+train_bc_fivnums <- rbind(train_bc_fivnums,IQR)%>%
+  view()
+
+dist_q3_max <- train_bc_fivnums[5,]-train_bc_fivnums[4,]
+dist_q1_min <- train_bc_fivnums[2,]-train_bc_fivnums[1,]
+
+train_bc_fivnums <- rbind(train_bc_fivnums,dist_q3_max)
+train_bc_fivnums <- rbind(train_bc_fivnums,dist_q1_min)
+
+view(train_bc_fivnums)
+
+rownames(train_bc_fivnums) <- c("Min","Quartile-1","Median","Quartile-3","Max","diff_q1_q3","Outlier_dist","dist_q3_max","dist_q1_min")
+
+view(train_bc_fivnums)
+```
+By looking at the table created in the above step, we can conclusively see that there are features which have outliers using the IQR rule. The next step will be mark on the actual dataset these outliers
+```{r}
+o1<-which(train_bc$Radius.mean %in% boxplot.stats(train_bc$Radius.mean)$out)
+o2<-which(train_bc$Texture.mean %in% boxplot.stats(train_bc$Texture.mean)$out)
+o3<-which(train_bc$Perimeter.mean %in% boxplot.stats(train_bc$Perimeter.mean)$out)
+o4<-which(train_bc$Area.mean %in% boxplot.stats(train_bc$Area.mean)$out)
+o5<-which(train_bc$Smoothness.mean %in% boxplot.stats(train_bc$Smoothness.mean)$out)
+o6<-which(train_bc$Concavity.mean %in% boxplot.stats(train_bc$Concavity.mean)$out)
+o7<-which(train_bc$nocp.mean %in% boxplot.stats(train_bc$nocp.mean)$out)
+o8<-which(train_bc$Symmetry.mean %in% boxplot.stats(train_bc$Symmetry.mean)$out)
+o9<-which(train_bc$fd.mean %in% boxplot.stats(train_bc$fd.mean)$out)
+o10<-which(train_bc$Compactness.mean %in% boxplot.stats(train_bc$Compactness.mean)$out)
+
+o11<-which(train_bc$Radius.sd %in% boxplot.stats(train_bc$Radius.sd)$out)
+o12<-which(train_bc$Texture.sd %in% boxplot.stats(train_bc$Texture.sd)$out)
+o13<-which(train_bc$Perimeter.sd %in% boxplot.stats(train_bc$Perimeter.sd)$out)
+o14<-which(train_bc$Area.sd %in% boxplot.stats(train_bc$Area.sd)$out)
+o15<-which(train_bc$Smoothness.sd %in% boxplot.stats(train_bc$Smoothness.sd)$out)
+o16<-which(train_bc$Concavity.sd %in% boxplot.stats(train_bc$Concavity.sd)$out)
+o17<-which(train_bc$nocp.sd %in% boxplot.stats(train_bc$nocp.sd)$out)
+o18<-which(train_bc$Symmetry.sd %in% boxplot.stats(train_bc$Symmetry.sd)$out)
+o19<-which(train_bc$fd.sd %in% boxplot.stats(train_bc$fd.sd)$out)
+o20<-which(train_bc$Compactness.sd %in% boxplot.stats(train_bc$Compactness.sd)$out)
+
+o21<-which(train_bc$Radius.max %in% boxplot.stats(train_bc$Radius.max)$out)
+o22<-which(train_bc$Texture.max %in% boxplot.stats(train_bc$Texture.max)$out)
+o23<-which(train_bc$Perimeter.max %in% boxplot.stats(train_bc$Perimeter.max)$out)
+o24<-which(train_bc$Area.max %in% boxplot.stats(train_bc$Area.max)$out)
+o25<-which(train_bc$Smoothness.max %in% boxplot.stats(train_bc$Smoothness.max)$out)
+o26<-which(train_bc$Concavity.max %in% boxplot.stats(train_bc$Concavity.max)$out)
+o27<-which(train_bc$nocp.max %in% boxplot.stats(train_bc$nocp.max)$out)
+o28<-which(train_bc$Symmetry.max %in% boxplot.stats(train_bc$Symmetry.max)$out)
+o29<-which(train_bc$fd.max %in% boxplot.stats(train_bc$fd.max)$out)
+o30<-which(train_bc$Compactness.max %in% boxplot.stats(train_bc$Compactness.max)$out)
+
+view(train_bc)
+
+train_bc_cleaned <- train_bc[-c(o1,o2,o3,o4,o5,o6,o7,o8,o9,o10,o11,o12,o13,o14,o15,o16,o17,o18,o19,o20,o21,o22,o23,o24,o25,o26,o27,o28,o29,o30),]
+
+view(train_bc_cleaned)
+```
+
+```{r}
+train_bc_navals <- sapply(train_bc[c("Radius.mean","Texture.mean","Perimeter.mean","Area.mean","Smoothness.mean","Compactness.mean","Concavity.mean","nocp.mean","Symmetry.mean","fd.mean","Radius.sd","Texture.sd","Perimeter.sd","Area.sd","Smoothness.sd","Compactness.sd","Concavity.sd","nocp.sd","Symmetry.sd","fd.sd","Radius.max","Texture.max","Perimeter.max","Area.max","Smoothness.max","Compactness.max","Concavity.max","nocp.max","Symmetry.max","fd.max")],is.na)%>%
+  view()
+
+train_bc_navals <- sapply(train_bc_navals[c("Radius.mean","Texture.mean","Perimeter.mean","Area.mean","Smoothness.mean","Compactness.mean","Concavity.mean","nocp.mean","Symmetry.mean","fd.mean","Radius.sd","Texture.sd","Perimeter.sd","Area.sd","Smoothness.sd","Compactness.sd","Concavity.sd","nocp.sd","Symmetry.sd","fd.sd","Radius.max","Texture.max","Perimeter.max","Area.max","Smoothness.max","Compactness.max","Concavity.max","nocp.max","Symmetry.max","fd.max")],unique)%>%
+  view()
+
+```
+There are no NA values in the dataset
+```{r}
+correlation_coefficient_train_bc <- cor(train_bc)%>%
+  view()
+
+correlation_coefficient_train_bc_cleaned <- cor(train_bc_cleaned)%>%
+  view()
+
+correlation_coff_com <- rbind(correlation_coefficient_train_bc[31,],correlation_coefficient_train_bc_cleaned[31,])%>%
+  view()
+
+```
+Extracting features with the highest correlation amongst the three cohorts.
+```{r}
+tree_1_org_data <- rpart(as.factor(Label)~Radius.mean+Perimeter.mean+Area.mean+Concavity.mean+nocp.mean+Radius.sd+Perimeter.sd+Area.sd+Compactness.sd+Radius.max+Perimeter.max+Area.max+Concavity.max+nocp.max+Compactness.max, data = train_bc, parms =list(split = "information"), control = rpart.control(minbucket = 3, minsplit = 8))
+
+rpart.plot(tree_1_org_data)
+
+prediction_1_test <- predict(tree_1_org_data,test_bc_data, type="class")
+prediction_2_train <- predict(tree_1_org_data,train_bc_data, type="class")
+
+
+view(prediction_1_test)
+
+view(test_bc_label)
+
+confs_mat_1 <- table(prediction_1_test,test_bc_label$Label)%>%
+  view()
+
+confs_mat_1a <- table(prediction_2_train,train_bc_label$Label)%>%
+  view()
+
+Accuracy_tree_1_test <- 53/56
+Accuracy_tree_1_train <- 443/454
+print(Accuracy_tree_1_train)
+print(Accuracy_tree_1_test)
+```
+
+```{r}
+tree_2_clean_data <-rpart(as.factor(Label)~Radius.mean+Perimeter.mean+Area.mean+Concavity.mean+nocp.mean+Radius.sd+Perimeter.sd+Area.sd+Compactness.sd+Radius.max+Perimeter.max+Area.max+Concavity.max+nocp.max+Compactness.max, data = train_bc_cleaned, parms =list(split = "information"),control=rpart.control(minbucket = 3, minsplit = 7))
+
+rpart.plot(tree_2_clean_data)
+
+prediction_2_test <- predict(tree_2_clean_data,test_bc_data, type="class")
+prediction_2_train <- predict(tree_2_clean_data,train_bc_cleaned$Label,type="class")
+
+view(prediction_2_test)
+
+confs_mat_2 <- table(prediction_2_test,test_bc_label$Label)%>%
+  view()
+
+Accuracy_2_tree <- 51/56
+print(Accuracy_2_tree)
+```
+
+
+```{r}
+tree_3_org_data <- rpart(as.factor(Label)~.,data = train_bc,control = rpart.control(minbucket = 3, minsplit = 7))
+rpart.plot(tree_3_org_data)
+
+prediction_3_test <- predict(tree_3_org_data,test_bc_data, type="class")
+prediction_3_train <- predict(tree_3_org_data,train_bc_data, type="class")
+
+
+view(prediction_3_test)
+
+confs_mat_3 <- table(prediction_3_test,test_bc_label$Label)%>%
+  view()
+
+Accuracy_3_tree <- 50/56
+print(Accuracy_3_tree)
+
+
+
+```
+
+```{r}
+tree_4_clean_data <- rpart(as.factor(Label)~.,data = train_bc_cleaned,control = rpart.control(minbucket = 3, minsplit = 7))
+rpart.plot(tree_4_clean_data)
+
+prediction_4_test <- predict(tree_4_clean_data,test_bc_data, type="class")
+prediction_4_train <- predict(tree_4_clean_data,train_bc_data, type="class")
+
+
+view(prediction_4_test)
+
+confs_mat_4 <- table(prediction_4_test,test_bc_label$Label)%>%
+  view()
+
+Accuracy_2_tree <- 47/56
+print(Accuracy_2_tree)
+
+
+
+```
+Tree_1 gave the best accuracy when tested with test data, hence will go ahead with that
+
+```{r}
+view(tree_1_org_data$cptable)
+tree_1_org_data_pruned <- prune(tree_1_org_data,cp=0.0100000)
+rpart.plot(tree_1_org_data_pruned)
+
+prediction_5_test <- predict(tree_1_org_data_pruned,test_bc_data, type="class")
+prediction_5_train <- predict(tree_1_org_data_pruned,train_bc_data, type="class")
+
+
+view(prediction_5_test)
+
+confs_mat_5 <- table(prediction_5_test,test_bc_label$Label)%>%
+  view()
+
+confs_mat_5a <- table(prediction_5_train,train_bc_label$Label)%>%
+  view()
+
+Accuracy_5_tree <- 53/56
+Accuracy_5_train <- 443/454
+print(Accuracy_5_train)
+print(Accuracy_5_tree)
+```
+
+
+Question - 1
+
+a. There were no NA values in the dataset. We did identify outliers in all the variable, and have produced trees after removing these from the dataset; however, this caused the accuracy of the tree to go down on the test dataset. The highly correlated variables with the Label are chosen to produce the most optimal tree.
+
+b. The tree has 5 leaf nodes.
+c. Major predictors :
+    i. Max value of Perimeter
+    ii. Max value of 'Number of concave portions'
+    iii. Max value of Area
+    iv. Mean value of Radius
+    
+  These are from the subset of highly correlated variables with the Label.
+
+d. Two rules for people likely to have cancer:
+    i. if Perimeter.max >106 and NOCP.max >0.15 then Cancer
+    ii.if Perimeter.max >106 and NOCP.max <0.15 and Area.max>957 then Cancer
+    
+e. Accuracy of the tree :
+    i. Training dataset: 
+    ii.Test dataset : 92.85%
+  
+f. To create the best possible tree, we looked at the best CP value for the        tree with the highest accuracy. The best CP value was chosen based on the      minimum error. We pruned the tree based on this value. To evaluate its         performance, we looked at the accuracy of its predictions on the test          dataset.
+
+g. All rules :
+    i. if perimeter.max <106 then No cancer
+    ii.if perimeter.max=>106, nocp.max<0.15, area.max<957, Radius.mean=>14             then No cancer
+    iii.if perimeter.max=>106, nocp.max<0.15, area.max<957, Radius.mean<14             then Cancer
+    iv. if Perimeter.max >106 and NOCP.max >0.15 then Cancer
+    v.if Perimeter.max >106 and NOCP.max <0.15 and Area.max>957 then Cancer
+
+
+###############################################################################
+
+
+
+Q2
+Importing dataset
+```{r}
+zoo_full_file_t3 <- read.csv("03 Case -2 Train data/zoo.csv")
+zoo_train_file_t1 <- read.csv("03 Case -2 Train data/zoo1.csv")
+zoo_test_file_t2 <- read.csv("04 Case -2 Test data/zoo2.csv")
+```
+Converting variables to factors
+```{r}
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,hair=as.factor(hair))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,feathers=as.factor(feathers))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,eggs=as.factor(eggs))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,milk=as.factor(milk))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,airborne=as.factor(airborne))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,aquatic=as.factor(aquatic))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,predator=as.factor(predator))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,toothed=as.factor(toothed))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,backbone=as.factor(backbone))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,breathes=as.factor(breathes))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,venomous=as.factor(venomous))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,legs=as.numeric(legs))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,tail=as.factor(tail))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,catsize=as.factor(catsize))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,domestic=as.factor(domestic))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,fins=as.factor(fins))
+zoo_train_file_t1 <- mutate(zoo_train_file_t1,type=as.factor(type))
+
+zoo_train_file_t1$animal <- NULL
+```
+
+```{r}
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,hair=as.factor(hair))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,feathers=as.factor(feathers))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,eggs=as.factor(eggs))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,milk=as.factor(milk))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,airborne=as.factor(airborne))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,aquatic=as.factor(aquatic))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,predator=as.factor(predator))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,toothed=as.factor(toothed))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,backbone=as.factor(backbone))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,breathes=as.factor(breathes))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,venomous=as.factor(venomous))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,legs=as.numeric(legs))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,tail=as.factor(tail))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,catsize=as.factor(catsize))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,domestic=as.factor(domestic))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,fins=as.factor(fins))
+zoo_test_file_t2 <- mutate(zoo_test_file_t2,type=as.factor(type))
+
+```
+
+```{r}
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,hair=as.factor(hair))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,feathers=as.factor(feathers))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,eggs=as.factor(eggs))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,milk=as.factor(milk))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,airborne=as.factor(airborne))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,aquatic=as.factor(aquatic))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,predator=as.factor(predator))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,toothed=as.factor(toothed))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,backbone=as.factor(backbone))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,breathes=as.factor(breathes))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,venomous=as.factor(venomous))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,legs=as.numeric(legs))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,tail=as.factor(tail))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,catsize=as.factor(catsize))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,domestic=as.factor(domestic))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,fins=as.factor(fins))
+zoo_full_file_t3 <- mutate(zoo_full_file_t3,type=as.factor(type))
+
+```
+
+```{r}
+zoo_tree_type <- rpart(as.factor(type)~.,zoo_train_file_t1, method='class',parms = list(split = "information"),control = rpart.control(minbucket = 2, minsplit = 8))
+rpart.plot(zoo_tree_type)
+
+prediction_1_zoo_test <- predict(zoo_tree_type,zoo_test_file_t2, type="class")
+prediction_1_zoo_train <- predict(zoo_tree_type,zoo_train_file_t1,type="class")
+
+
+view(prediction_1_zoo_test)
+view(zoo_test_file_t2)
+
+prediction_comparison <- cbind(prediction_1_zoo_test, zoo_test_file_t2$type)%>%
+  view()
+
+prediction_comparison_train <- cbind(prediction_1_zoo_train,zoo_train_file_t1$type)%>%
+  view()
+
+
+#write.csv(prediction_1_zoo_test,"04 Case -2 Test #data/test_results_zoo_test.csv")
+
+Accuracy_1_zoo_tree <- 26/30
+Accuracy_1_zoo_train <- 68/71
+print(Accuracy_1_zoo_train)
+print(Accuracy_1_zoo_tree)
+
+```
+
+```{r}
+
+view(zoo_tree_type$cptable)
+zoo_tree_type_pruned <- prune(zoo_tree_type, cp = 0.0100000 )
+rpart.plot(zoo_tree_type_pruned)
+
+prediction_1_zoo_test_pruned <- predict(zoo_tree_type_pruned,zoo_test_file_t2, type="class")
+prediction_1_zoo_train_pruned <- predict(zoo_tree_type_pruned,zoo_train_file_t1,type="class")
+
+
+
+prediction_comparison_pruned <- cbind(prediction_1_zoo_test_pruned, zoo_test_file_t2$type)%>%
+  view()
+
+prediction_comparison_train_pruned <- cbind(prediction_1_zoo_train_pruned,zoo_train_file_t1$type)%>%
+  view()
+
+
+#write.csv(prediction_1_zoo_test,"04 Case -2 Test #data/test_results_zoo_test.csv")
+
+Accuracy_1_zoo_tree_pruned <- 26/30
+Accuracy_1_zoo_train_pruned <- 68/71
+print(Accuracy_1_zoo_train_pruned)
+print(Accuracy_1_zoo_tree_pruned)
+```
+No changes in the tree
+
+1R tree - Milk
+```{r}
+
+zoo_tree_type_milk_1R <- rpart(as.factor(type)~milk,zoo_full_file_t3, method='class',parms = list(split = "information"),control = rpart.control(minbucket = 2, minsplit = 8))
+rpart.plot(zoo_tree_type_milk_1R)
+
+prediction_1_zoo_train_milk <- predict(zoo_tree_type_milk_1R,zoo_full_file_t3,type="class")
+
+
+prediction_comparison_train_milk <- cbind(prediction_1_zoo_train_milk,zoo_full_file_t3$type)%>%
+  view()
+
+
+Accuracy_1_zoo_tree_milk <- 17/30
+Accuracy_1_zoo_train_milk <- 35/71
+print(Accuracy_1_zoo_train_milk)
+print(Accuracy_1_zoo_tree_milk)
+
+```
+1R - Feather
+```{r}
+
+zoo_tree_type_feather_1R <- rpart(as.factor(type)~feather,zoo_full_file_t3, method='class',parms = list(split = "information"),control = rpart.control(minbucket = 2, minsplit = 8))
+rpart.plot(zoo_tree_type_feather_1R)
+
+prediction_1_zoo_train_feather <- predict(zoo_tree_type_feather_1R,zoo_full_file_t3,type="class")
+
+
+
+
+prediction_comparison_train_feather <- cbind(prediction_1_zoo_train_feather,zoo_full_file_t3$type)%>%
+  view()
+
+
+Accuracy_1_zoo_tree_feather <- 17/30
+Accuracy_1_zoo_train_feather <- 35/71
+print(Accuracy_1_zoo_train_feather)
+print(Accuracy_1_zoo_tree_feather)
+
+```
+
+
+
+
+1R- Aquatic
+```{r}
+zoo_tree_type_aquatic_1R <- rpart(as.factor(type)~aquatic,zoo_full_file_t3, method='class',parms = list(split = "information"),control = rpart.control(minbucket = 2, minsplit = 8))
+rpart.plot(zoo_tree_type_aquatic_1R)
+
+prediction_1_zoo_train_aquatic <- predict(zoo_tree_type_aquatic_1R,zoo_full_file_t3,type="class")
+
+
+prediction_comparison_train_aquatic <- cbind(prediction_1_zoo_train_aquatic,zoo_full_file_t3$type)%>%
+  view()
+
+
+Accuracy_1_zoo_tree_aquatic <- 17/30
+Accuracy_1_zoo_train_aquatic <- 35/71
+print(Accuracy_1_zoo_train_aquatic)
+print(Accuracy_1_zoo_tree_aquatic)
+
+```
+
+
+
+b. 
+  i. Leaves in the tree : 4
+  ii.Classification accuracy on training dataset : 
+  iii.Classification accuracy on test dataset : 80%
+
+d. 
+
+  
